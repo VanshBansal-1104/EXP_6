@@ -1,0 +1,17 @@
+{
+  "name": "jwt-banking-api",
+  "version": "1.0.0",
+  "description": "Simple Express.js Banking API secured with JWT (education demo)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": ["express", "jwt", "banking", "api"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
