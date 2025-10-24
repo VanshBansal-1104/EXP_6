@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JWT Banking API – Demo</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#121a2b; --text:#e6eefc; --muted:#99a7c2; --accent:#4f9cff; }
+    html, body { height:100%; margin:0; }
+    body { background:var(--bg); color:var(--text); font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial; display:flex; align-items:center; justify-content:center; }
+    .wrap { width:min(960px, 92vw); padding:24px; background:var(--panel); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    h1 { margin:0 0 .5rem; font-size:1.6rem; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+    label { display:block; font-weight:600; margin:.5rem 0 .25rem; }
+    input { width:100%; padding:.6rem .7rem; border-radius:8px; border:1px solid #223; background:#0e1627; color:var(--text); }
+    button { background:var(--accent); border:none; color:#06224d; font-weight:700; padding:.55rem .9rem; border-radius:8px; cursor:pointer; }
+    button.secondary { background:#213355; color:#cfe0ff; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    pre { background:#0a0f1d; color:#aef5ae; padding:12px; border-radius:8px; max-height:220px; overflow:auto; border:1px solid #22344f; white-space: pre-wrap; overflow-wrap:anywhere; }
+    code { color:#a0d8ff; }
+    .muted { color:var(--muted); }
+    .token { white-space: pre-wrap; overflow-wrap:anywhere; border:1px solid #22344f; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>JWT Banking API – Demo</h1>
+    <p class="muted">Use this page to log in and call protected endpoints. It talks to the running API at <code>http://localhost:3000</code>.</p>
+
+    <div class="grid">
+      <section>
+        <h3>1) Login</h3>
+        <label>Username</label>
+        <input id="u" value="user1" />
+        <label>Password</label>
+        <input id="p" value="password123" type="password" />
+        <div class="row" style="margin-top:.6rem">
+          <button id="btnLogin">Get Token</button>
+          <button id="btnClear" class="secondary">Clear Token</button>
+        </div>
+        <div class="row" style="margin-top:.6rem; align-items:center">
+          <span class="muted">Saved token:</span>
+          <button id="btnCopy" class="secondary">Copy</button>
+        </div>
+        <pre id="token" class="token">(none)</pre>
+      </section>
+
+      <section>
+        <h3>2) Actions</h3>
+        <div class="row">
+          <button id="btnBalance">GET /balance</button>
+        </div>
+        <div class="row" style="margin-top:.6rem">
+          <input id="amount" type="number" min="1" step="1" placeholder="Amount" value="250" style="max-width:200px"/>
+          <button id="btnDeposit">POST /deposit</button>
+          <button id="btnWithdraw" class="secondary">POST /withdraw</button>
+        </div>
+        <p class="muted" style="margin-top:.6rem">Response:</p>
+        <pre id="out">(no calls yet)</pre>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const api = 'http://localhost:3000';
+    const $ = (id) => document.getElementById(id);
+    const show = (el, data) => el.textContent = (typeof data === 'string') ? data : JSON.stringify(data, null, 2);
+
+    // Load saved token
+    const saved = localStorage.getItem('jwt_token');
+    if (saved) show($('token'), { token: saved });
+
+    $('btnLogin').onclick = async () => {
+      show($('out'), 'Logging in...');
+      const body = { username: $('u').value, password: $('p').value };
+      try {
+        const res = await fetch(api + '/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const json = await res.json();
+        if (!res.ok) { show($('out'), json); return; }
+        localStorage.setItem('jwt_token', json.token);
+        show($('token'), json);
+        show($('out'), json);
+      } catch (e) { show($('out'), String(e)); }
+    };
+
+    $('btnClear').onclick = () => {
+      localStorage.removeItem('jwt_token');
+      show($('token'), '(none)');
+      show($('out'), '(cleared)');
+    };
+
+    $('btnCopy').onclick = async () => {
+      const token = localStorage.getItem('jwt_token');
+      if (!token) { show($('out'), '(no token to copy)'); return; }
+      try { await navigator.clipboard.writeText(token); show($('out'), '(token copied to clipboard)'); }
+      catch { show($('out'), '(copy failed)'); }
+    };
+
+    async function call(method, path, body) {
+      const token = localStorage.getItem('jwt_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch(api + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      let data; try { data = await res.json(); } catch { data = await res.text(); }
+      return { status: res.status, data };
+    }
+
+    $('btnBalance').onclick = async () => {
+      show($('out'), 'Requesting balance...');
+      const { status, data } = await call('GET', '/balance');
+      show($('out'), { status, ...data });
+    };
+
+    $('btnDeposit').onclick = async () => {
+      const amt = Number($('amount').value);
+      show($('out'), 'Depositing...');
+      const { status, data } = await call('POST', '/deposit', { amount: amt });
+      show($('out'), { status, ...data });
+    };
+
+    $('btnWithdraw').onclick = async () => {
+      const amt = Number($('amount').value);
+      show($('out'), 'Withdrawing...');
+      const { status, data } = await call('POST', '/withdraw', { amount: amt });
+      show($('out'), { status, ...data });
+    };
+  </script>
+</body>
+</html>
